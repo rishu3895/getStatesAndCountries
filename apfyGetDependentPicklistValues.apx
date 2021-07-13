@@ -68,21 +68,27 @@ public class apfyGetDependentPicklistValues {
             dep = 'name';
         }
         Schema.DescribeFieldResult fieldResult;
-        if(name.contains('country')){
+        if(name.equals('country')){
             fieldResult = User.Countrycode.getDescribe();
-        }else{
+        }else if(name.equals('state')){
             fieldResult = User.statecode.getDescribe();
+        }else{
+            System.debug('the name field can only have two values country or state');
+            return null;
         }
         List<Schema.PicklistEntry> ple = fieldResult.getPicklistValues();
         Map<String, String> result = new Map<String, String>();
-        if(dep.contains('name')){
+        if(dep.equals('name')){
             for( Schema.PicklistEntry f : ple){
                 result.put(f.getLabel(),f.getValue());
             }
-        }else{
+        }else if(dep.equals('code')){
             for( Schema.PicklistEntry f : ple){
                 result.put(f.getValue(),f.getLabel());
             }
+        }else{
+            System.debug('Dep can only have two values name or code');
+            return null;
         }
         return result;
     }
@@ -96,17 +102,27 @@ public class apfyGetDependentPicklistValues {
         }
         // If dep is name then map will have state - code else vice-versa
         Map<String, List<String>> fieldDep = getFieldDependencies('User','CountryCode','StateCode');
-        List<String> states = fieldDep.get(country);
+        
+        List<String> states = new List<String>();
+        if(fieldDep.containsKey(country)){
+            states = fieldDep.get(country);
+        }else{
+            System.debug('The country name is not accurate, Please use the correct country name');
+            return null;
+        }
         Map<String, String> allStates = getCountryAndStatesMap('state','name');
         Map<String, String> returnStates = new Map<String, String>();
-        if(dep.contains('name')){
+        if(dep.equals('name')){
             for(String state : states){
                 returnStates.put(state,allStates.get(state));
             }
-        }else{
+        }else if(dep.equals('code')){
             for(String state : states){
                 returnStates.put(allStates.get(state),state);
             }
+        }else{
+            System.debug('Dep can only have two values name or code');
+            return null;
         }
         return returnStates;
     }
