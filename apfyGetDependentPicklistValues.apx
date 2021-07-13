@@ -1,0 +1,113 @@
+public class apfyGetDependentPicklistValues {
+    public class PickListInfo{
+        public String validFor;
+    }
+    
+    public static Map<String, List<String>> getFieldDependencies(String objectName, String controllingField, String dependentField){
+        Map<String, List<String>> controllingInfo = new Map<String, List<String>>();
+        
+        Schema.SObjectType objType = Schema.getGlobalDescribe().get(objectName);
+        
+        Schema.DescribeSObjectResult describeResult = objType.getDescribe();
+        Schema.DescribeFieldResult controllingFieldInfo = describeResult.fields.getMap().get(controllingField).getDescribe();
+        Schema.DescribeFieldResult dependentFieldInfo = describeResult.fields.getMap().get(dependentField).getDescribe();
+        
+        List<Schema.PicklistEntry> controllingValues = controllingFieldInfo.getPicklistValues();
+        List<Schema.PicklistEntry> dependentValues = dependentFieldInfo.getPicklistValues();
+        
+        for(Schema.PicklistEntry currControllingValue : controllingValues){
+            controllingInfo.put(currControllingValue.getLabel(), new List<String>());
+        }
+        
+        for(Schema.PicklistEntry currDependentValue : dependentValues){
+            String jsonString = JSON.serialize(currDependentValue);
+            
+            PickListInfo info = (PickListInfo) JSON.deserialize(jsonString, PickListInfo.class);
+            
+            String hexString = EncodingUtil.convertToHex(EncodingUtil.base64Decode(info.validFor)).toUpperCase();
+            
+            Integer baseCount = 0;
+            
+            for(Integer curr : hexString.getChars()){
+                Integer val = 0;
+                
+                if(curr >= 65){
+                    val = curr - 65 + 10;
+                }
+                else{
+                    val = curr - 48;
+                }
+                
+                if((val & 8) == 8){
+                    controllingInfo.get(controllingValues[baseCount + 0].getLabel()).add(currDependentValue.getLabel());
+                }
+                if((val & 4) == 4){
+                    controllingInfo.get(controllingValues[baseCount + 1].getLabel()).add(currDependentValue.getLabel());                 
+                }
+                if((val & 2) == 2){
+                    controllingInfo.get(controllingValues[baseCount + 2].getLabel()).add(currDependentValue.getLabel());                 
+                }
+                if((val & 1) == 1){
+                    controllingInfo.get(controllingValues[baseCount + 3].getLabel()).add(currDependentValue.getLabel());                 
+                }
+                
+                baseCount += 4;
+            }         
+        }
+        return controllingInfo;
+    }
+    
+    
+    public static Map<String, String> getCountryAndStatesMap(String name, String dep){
+        // If name is country then all countries will returned and if name is state then all states will be returned
+        // If dep is name then map will have country/state - code else vice-versa
+        if(name.equals('')){
+            return null;
+        }
+        if(dep.equals('')){
+            dep = 'name';
+        }
+        Schema.DescribeFieldResult fieldResult;
+        if(name.contains('country')){
+            fieldResult = User.Countrycode.getDescribe();
+        }else{
+            fieldResult = User.statecode.getDescribe();
+        }
+        List<Schema.PicklistEntry> ple = fieldResult.getPicklistValues();
+        Map<String, String> result = new Map<String, String>();
+        if(dep.contains('name')){
+            for( Schema.PicklistEntry f : ple){
+                result.put(f.getLabel(),f.getValue());
+            }
+        }else{
+            for( Schema.PicklistEntry f : ple){
+                result.put(f.getValue(),f.getLabel());
+            }
+        }
+        return result;
+    }
+    
+    public static Map<String,String> getStatesForSelectedCountry(String country, String dep){
+        if(country.equals('')){
+            return null;
+        }
+        if(dep.equals('')){
+            dep = 'name';
+        }
+        // If dep is name then map will have state - code else vice-versa
+        Map<String, List<String>> fieldDep = getFieldDependencies('User','CountryCode','StateCode');
+        List<String> states = fieldDep.get(country);
+        Map<String, String> allStates = getCountryAndStatesMap('state','name');
+        Map<String, String> returnStates = new Map<String, String>();
+        if(dep.contains('name')){
+            for(String state : states){
+                returnStates.put(state,allStates.get(state));
+            }
+        }else{
+            for(String state : states){
+                returnStates.put(allStates.get(state),state);
+            }
+        }
+        return returnStates;
+    }
+}
